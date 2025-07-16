@@ -1,0 +1,108 @@
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const randomBtn = document.getElementById("randomBtn");
+const resultsDiv = document.getElementById("results");
+const loadingDiv = document.getElementById("loading");
+
+function showLoading() {
+  loadingDiv.style.display = "block";
+}
+
+function hideLoading() {
+  loadingDiv.style.display = "none";
+}
+
+function displayResult(data) {
+  if (!data || Object.keys(data).length === 0) {
+    resultsDiv.innerHTML = "<p>No results found.</p>";
+    return;
+  }
+
+  if (data.query) {
+    const pages = data.query.pages;
+    const pageId = Object.keys(pages)[0];
+    const page = pages[pageId];
+
+    resultsDiv.innerHTML = `
+      <h2>${page.title}</h2>
+      <p>${page.extract}</p>
+      <p><a href="https://en.wikipedia.org/?curid=${page.pageid}" target="_blank">Read more on Wikipedia</a></p>
+    `;
+  } else if (data.title && data.extract) {
+    resultsDiv.innerHTML = `
+      <h2>${data.title}</h2>
+      <p>${data.extract}</p>
+      <p><a href="https://en.wikipedia.org/?curid=${data.pageid}" target="_blank">Read more on Wikipedia</a></p>
+    `;
+  }
+}
+
+async function searchWikipedia() {
+  const query = searchInput.value.trim();
+  if (!query) {
+    resultsDiv.innerHTML = "<p>Please enter a search term.</p>";
+    return;
+  }
+
+  showLoading();
+  resultsDiv.innerHTML = "";
+
+  const apiUrl = `https://en.wikipedia.org/w/api.php?origin=*&action=query&format=json&prop=extracts&explaintext=true&exintro=true&generator=search&gsrsearch=${encodeURIComponent(
+    query
+  )}&gsrlimit=1`;
+
+  try {
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    hideLoading();
+
+    if (
+      data.query &&
+      data.query.pages &&
+      Object.keys(data.query.pages).length > 0
+    ) {
+      displayResult(data);
+    } else {
+      resultsDiv.innerHTML = "<p>No results found.</p>";
+    }
+  } catch (error) {
+    hideLoading();
+    resultsDiv.innerHTML = "<p>Error fetching data. Please try again.</p>";
+    console.error(error);
+  }
+}
+
+async function fetchRandomArticle() {
+  showLoading();
+  resultsDiv.innerHTML = "";
+
+  const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/random/summary`;
+
+  try {
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    hideLoading();
+
+    if (data && data.title && data.extract) {
+      displayResult(data);
+    } else {
+      resultsDiv.innerHTML = "<p>Could not fetch a random article.</p>";
+    }
+  } catch (error) {
+    hideLoading();
+    resultsDiv.innerHTML = "<p>Error fetching data. Please try again.</p>";
+    console.error(error);
+  }
+}
+
+document.getElementById("searchBtn").addEventListener("click", searchWikipedia);
+document
+  .getElementById("randomBtn")
+  .addEventListener("click", fetchRandomArticle);
+document
+  .getElementById("searchInput")
+  .addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      searchWikipedia();
+    }
+  });
